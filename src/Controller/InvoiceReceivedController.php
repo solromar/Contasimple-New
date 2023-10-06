@@ -7,12 +7,11 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\DependencyInjection\Loader\Configurator\request;
 
-class InvoiceIssuedController extends AbstractController
+class InvoiceReceivedController extends AbstractController
 {
-    #[Route('/invoice/issued', name: 'app_invoice_issued')]
-    public function authAndGetInvoicesIssued()
+    #[Route('/invoice/received', name: 'app_invoice_received')]
+    public function authAndGetInvoicesReceived()
     {
         $authorizationKey = 'f9670a835eb947ffa7efd9e2df8b3348';
         // -------------------------------------------Obtener el token de Autorizacion -----------------------------------------------------//
@@ -22,23 +21,23 @@ class InvoiceIssuedController extends AbstractController
                 'key' => $authorizationKey,
                 'grant_type' => 'authentication_key',
             ],
-        ]);        
+        ]);
         $data = json_decode($response->getBody()->getContents(), true);
         $accessToken = $data['access_token'];
-// -----------------------------------------------  Obtener las Facturas Emitidas -------------------------------------------------------//
-        $response = $client->request('GET', 'https://api.contasimple.com/api/v2/accounting/2023-4T/invoices/issued', [
+        // -----------------------------------------------  Obtener las Facturas Emitidas -------------------------------------------------------//
+        $response = $client->request('GET', 'https://api.contasimple.com/api/v2/accounting/2023-4T/invoices/received', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $accessToken,
             ],
         ]);
         $invoices = json_decode($response->getBody()->getContents(), true);
-// --------------------------------------- Recorrer las facturas y asignar variables ---------------------------------------------------------//        
+        // --------------------------------------- Recorrer las facturas y asignar variables ---------------------------------------------------------//        
         $cantidadTotalFacturas = count($invoices['data']);
-// Crear un array que contendrá tanto la cantidad total de facturas como las facturas individuales
-$respuesta = [
-    'CANTIDAD TOTAL DE FACTURAS' => $cantidadTotalFacturas,
-    'FACTURAS EMITIDAS EN EL PERIODO' => [],
-];
+        // Crear un array que contendrá tanto la cantidad total de facturas como las facturas individuales
+        $respuesta = [
+            'CANTIDAD TOTAL DE FACTURAS' => $cantidadTotalFacturas,
+            'FACTURAS RECIBIDAS EN EL PERIODO' => [],
+        ];
 
         foreach ($invoices['data'] as $invoice) {
             // Variables para emisor de la factura //
@@ -78,8 +77,8 @@ $respuesta = [
                 'Importe total de impuestos' => number_format($invoice['totalVatAmount'], 2, '.', ','),
                 'Importe total de la factura ' => number_format($invoice['totalAmount'], 2, '.', ','),
                 'Importe total retenido' => number_format($invoice['totalReAmount'], 2, '.', ','),
-                'Importe total cobrado' => number_format($invoice['totalPayedAmount'], 2, '.', ','),
-                'Importe Total Pendiente de Cobro' => number_format($invoice['totalAmountPerPay'], 2, '.', ','),
+                'Importe total Pagado' => number_format($invoice['totalPayedAmount'], 2, '.', ','),
+                'Importe Total Pendiente de Pago' => number_format($invoice['totalAmountPerPay'], 2, '.', ','),
                 'Importe total computable' => number_format($invoice['totalComputableAmount'], 2, '.', ','),
                 'Importe total computable de impuestos' => number_format($invoice['totalComputableAmountForVAT'], 2, '.', ','),
                 'Porcentaje computable' => number_format($invoice['computablePercentage'], 2, '.', ','),
@@ -89,18 +88,18 @@ $respuesta = [
                 'DETALLES DEL EMISOR' => $issuerDetails,
                 'DETALLES DEL RECEPTOR' => $targetDetails,
             ];
-            //-------------------------------------------- DETALLE DE COBROS -----------------------------------------------------
+            //-------------------------------------------- DETALLE DE PAGOS -----------------------------------------------------
             foreach ($invoice['payments'] as $payment) {
                 $payments = [
-                    'Monto Cobrado' => number_format($payment['amount'], 2, '.', ','),
-                    'Fecha de Cobro' => $payment['date'],
+                    'Monto Pagado' => number_format($payment['amount'], 2, '.', ','),
+                    'Fecha de Pago' => $payment['date'],
                     'Forma de pago' => $payment['paymentMethodType'],
                     'Metodo de pago' => $payment['paymentMethodName'],
                     'Importe conciliado' => $payment['reconciledAmount'],
                     'Importe pendiente a conciliar' => $payment['pendingAmountToReconcile'],
                 ];
                 // Agregar el pago al array de pagos de la factura
-                $factura['DETALLE DE COBROS'][] = $payments;
+                $factura['DETALLE DE PAGOS'][] = $payments;
             }
             //------------------------------------------------- PRODUCTOS ---------------------------------------------------------- 
             foreach ($invoice['lines'] as $product) {
@@ -118,10 +117,10 @@ $respuesta = [
                 ];
                 // Agregar el producto al array de productos de la factura
                 $factura['DETALLE DE PRODUCTOS'][] = $producto;
-            }         
+            }
             // Agregar la factura procesada al array
-            $respuesta['FACTURAS EMITIDAS EN EL PERIODO'][] = $factura;
-        }        
+            $respuesta['FACTURAS RECIBIDAS EN EL PERIODO'][] = $factura;
+        }
         return new JsonResponse($respuesta);
     }
 }
